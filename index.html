@@ -1,0 +1,125 @@
+<html>
+
+<head>
+  <meta charset="UTF-8">
+</head>
+<script src="party.js"></script>
+<script src="./Score.js"></script>
+<script src="./Problem.js"></script>
+<script src="./domHandler.js"></script>
+<script src="./modal.js"></script>
+<script src="./loader.js"></script>
+<script>
+  google.charts.load('current',{packages:['corechart']});
+</script>
+<link rel="stylesheet" href="./problem.css">
+<script>
+    let DIGIT_NUMBER = 1;
+    function showDetailedReport() {
+      if (typeof ScoreCard == undefined) return
+      if (typeof Modal == undefined) return;
+      const data = [];
+      let count = 0;
+      for(let item of ScoreCard){
+        if(item.duration < 100){
+          data.push([item.duration, count++, `${item.problem} was solved in ${item.duration} seconds`]);
+        }
+      }
+      const chart = new google.visualization.LineChart(Modal.showAlert(Modal.sizes[2]));
+      chart.draw(
+        google.visualization.arrayToDataTable([ ['Time', 'Problem', { role: 'tooltip' }], ...data]),
+        {
+          height: 1000,
+          title: 'Time for every problem',
+          hAxis: { title: 'Duration' },
+          vAxis: { title: 'Problem' },
+          legend: 'none'
+        }
+      );
+    }
+
+  function runProblem() {
+    if (typeof ScoreCard === undefined || typeof DomRefs === undefined) return;
+
+    DomRefs.putValues({ report: ScoreCard.getReport() });
+    const problem = generateProblem(DIGIT_NUMBER);
+    DomRefs.putValues({ problem });
+    ScoreCard.startProblem(`${problem.firstNumber} ${problem.operator} ${problem.secondNumber} = ${problem.answer}`);
+  }
+
+  function celebrate(inputRef) {
+    typeof party !== 'undefined' &&
+      party.confetti(inputRef, {
+        count: party.variation.range(60, 80),
+        size: party.variation.range(0.8, 1.2),
+      });
+  }
+
+  function validate(event) {
+    event.preventDefault();
+    const { problem: { userInput, answer } } = DomRefs.getValues({ problem: { userInput: 'userInput', answer: 'answer' } })
+    if (
+      Number(userInput) !== Number(answer)
+    ) {
+      DomRefs.problem.userInput.classList.add('shake')
+      setTimeout(() => DomRefs.problem.userInput.classList.remove('shake'), 2000);
+      return false;
+    }
+    ScoreCard.endProblem();
+    celebrate(DomRefs.problem.userInput);
+
+    runProblem();
+  }
+
+  let DomRefs, ScoreCard, Modal;
+  function onLoadEvent() {
+    DomRefs = new DomReference({
+      problem: {
+        firstNumber: "firstNumber",
+        secondNumber: "secondNumber",
+        operator: "operator",
+        userInput: "userInput",
+        answer: "answer"
+      },
+      report: {
+        totalProblems: "totalProblems",
+        totalTime: "totalTime",
+        average: "average"
+      },
+      digits: "digits"
+    });
+    ScoreCard = new Score();
+    Modal = new GenericModal();
+
+    DomRefs.putValues({ digits: DIGIT_NUMBER });
+    runProblem();
+  }
+  function toggleHowManyDigits(){
+    DIGIT_NUMBER = (DIGIT_NUMBER + 1) % 4;
+    DomRefs.putValues({ digits: DIGIT_NUMBER });
+    runProblem();
+  }
+</script>
+
+<body onload="onLoadEvent()">
+  <form id="problem" action="_" onsubmit="validate(event)">
+    <span>
+      <span class="hidden">.</span>
+      <span id="firstNumber"></span>
+    </span>
+    <span>
+      <span id="operator"></span>
+      <span id="secondNumber"></span>
+    </span>
+    <input id="userInput" type="number" autocomplete="off" />
+    <input id="answer" type="hidden" />
+  </form>
+  <div id="report" onclick="showDetailedReport()">
+    <span> Total Problems: <span id="totalProblems">0</span></span>
+    <span> Time: <span id="totalTime">0</span> Seconds</span>
+    <span> Average: <span id="average">0</span> Seconds / problem</span>
+  </div>
+  <button id="digits" onclick="toggleHowManyDigits()"></button>
+</body>
+
+</html>
